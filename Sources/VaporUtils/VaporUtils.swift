@@ -1,24 +1,24 @@
+import Fluent
 import Vapor
 
-extension CodingKey {
-    var vaporValidationKey: Vapor.ValidationKey { .init(stringLiteral: stringValue) }
-}
+extension CodingKey { var vaporValidationKey: Vapor.ValidationKey { .init(stringLiteral: stringValue) } }
 
 extension Vapor.Cache {
-    func get<T>(_ key: String, expiresIn expirationTime: Vapor.CacheExpirationTime?, onMiss: () async throws -> T) async throws -> T where T: Codable {
-        if let cached = try await get(key) as T? {
-            return cached
-        }
-        else {
+    func get<T>(
+        _ key: String,
+        expiresIn expirationTime: Vapor.CacheExpirationTime?,
+        onMiss: () async throws -> T
+    ) async throws -> T where T: Codable {
+        guard let cached = try await get(key) as T? else {
             let value = try await onMiss()
 
             try await set(key, to: value, expiresIn: expirationTime)
 
             return value
         }
+        return cached
     }
 }
-
 
 extension AsyncThrowingStream: Vapor.AsyncResponseEncodable where Element == String {
     public func encodeResponse(for request: Request) async throws -> Vapor.Response {
@@ -45,7 +45,7 @@ extension AsyncThrowingStream: Vapor.AsyncResponseEncodable where Element == Str
 }
 
 extension Vapor.Request {
-    func validateForm<T>(type: T.Type) throws -> T? where T : Validatable, T : Decodable {
+    func validateForm<T>(type: T.Type) throws -> T? where T: Validatable, T: Decodable {
         do {
             try T.validate(content: self)
 
@@ -57,11 +57,8 @@ extension Vapor.Request {
             return nil
         }
     }
-    
     func validationErrorMessage() -> String? {
-        guard let errorMessage = session.data["error_message"] else {
-            return nil
-        }
+        guard let errorMessage = session.data["error_message"] else { return nil }
 
         session.data["error_message"] = nil
 
@@ -69,28 +66,18 @@ extension Vapor.Request {
     }
 }
 
-
 extension Vapor.ClientResponse {
     var string: String? {
-        guard
-            let body = body
-        else {
-            return nil
-        }
-        
+        guard let body = body else { return nil }
         let data = Data(buffer: body)
-        
         return String(data: data, encoding: .utf8)
     }
 }
 
-
 extension Vapor.RoutesBuilder {
     public func register(_ paths: [PathComponent], collection: RouteCollection) throws {
-        try grouped(paths)
-            .register(collection: collection)
+        try grouped(paths).register(collection: collection)
     }
-    
     public func register(_ path: PathComponent, collection: RouteCollection) throws {
         try register([path], collection: collection)
     }
